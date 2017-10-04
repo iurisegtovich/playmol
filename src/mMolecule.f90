@@ -57,7 +57,7 @@ contains
 
   !=================================================================================================
 
-  function tMolecule_index( me, string ) result( imol )
+  function tMolecule_index( me, string ) result( imol ) !sanity check for unique molecule identifier
     class(tMolecule), intent(in) :: me
     character(sl),    intent(in) :: string
     integer                      :: imol
@@ -65,13 +65,13 @@ contains
     character(sl) :: atom
     type(Struc), pointer :: ptr
     last = len_trim(string)
-    if ((last > 5).and.(string(1:4) == "mol(").and.(string(last:last) == ")")) then
+    if ((last > 5).and.(string(1:4) == "mol(").and.(string(last:last) == ")")) then !select molecule by ownership of unique atom identifier
       atom = string(5:last-1)
       if (has_macros(atom)) call error( "invalid atom name", atom )
       call me % list % search( [atom], ptr )
       if (.not.associated(ptr)) call error( "atom", atom, "does not exist" )
       imol = str2int( ptr % params )
-    else if (is_int(string)) then
+    else if (is_int(string)) then !select molecule by number
       imol = str2int(string)
       if (imol < 1) call error( "molecule index cannot be zero or negative" )
       if (imol > me%N) call error( "molecule index must lie between 1 and ", int2str(me%N) )
@@ -275,7 +275,7 @@ contains
 
   subroutine tMolecule_set_geometry( me, data, ndata )
     class(tMolecule), intent(inout) :: me
-    character(sl),    intent(in)    :: data(:,:)
+    character(sl),    intent(in)    :: data(:,:) !< brings build data from reader/prefixer/sufixer, 
     integer,          intent(in)    :: ndata(size(data,1))
     integer       :: N, i, j, narg, imol, iatom, ind(3)
     character(sl) :: arg(size(data,2)), catom
@@ -283,15 +283,16 @@ contains
     logical :: new_molecule
     type(Struc), pointer :: atom
     character(sl), allocatable :: prev(:)
-    character(sl), allocatable :: name(:)
-    real(rb), allocatable :: R(:,:)
+    character(sl), allocatable :: name(:) !< unique name of each individual atom of the molecule
+    real(rb), allocatable :: R(:,:) !< x, y, z of each individual atom of the molecule (real, local, then passed to object me%xyz as string)
     real(rb) :: L, theta, phi, R1(3), R2(3), R3(3), x(3), y(3), z(3)
+    
     natoms = me % number_of_atoms()
     allocate( prev(maxval(natoms)) )
     N = size(ndata)
     call writeln( "Number of provided geometric data: ", int2str(N) )
     allocate( name(N), R(3,N) )
-    new_molecule = .true.
+    new_molecule = .true. !< how does this variable work in the code?
     do i = 1, N
       narg = ndata(i)
       arg = data(i,:)
@@ -357,7 +358,7 @@ contains
       arg(2:4) = real2str(R(:,i))
       call me % xyz % add( 4, arg(1:4), me % list, repeatable = .true. )
       prev(iatom) = catom
-      new_molecule = iatom == natoms(imol)
+      new_molecule = ( iatom == natoms(imol) )
     end do
     if (.not.new_molecule) then
       call error( "geometric info for molecule", int2str(imol), "is incomplete" )

@@ -17,7 +17,7 @@
 !            Applied Thermodynamics and Molecular Simulation
 !            Federal University of Rio de Janeiro, Brazil
 
-  subroutine tPlaymol_write_lammpstrj( me, unit )
+  subroutine tPlaymol_write_lammpstrj( me, unit ) !box snapshot in lammpstrj dump format
     class(tPlaymol), intent(inout) :: me
     integer,         intent(in)    :: unit
     integer :: molcount(me%molecules%N), iatom, itype, i, imol, jmol, narg, natoms(me%molecules%N)
@@ -40,15 +40,16 @@
 !    write(unit,'("ITEM: ATOMS id mol type x y z ix iy iz ")')
     write(unit,'("ITEM: ATOMS id mol type x y z")')
     natoms = me % molecules % number_of_atoms()
-    current => me % molecules % xyz % first
+    current => me % molecules % xyz % first !first atom
     iatom = 0
     jmol = 0
     do while (associated(current))
-      jmol = jmol + 1
-      imol = str2int(me % molecules % list % parameters( current % id ) )
-      do i = 1, natoms(imol)
-        iatom = iatom + 1
+      jmol = jmol + 1 !increasing counter for each molecule in the box (according to bond or link info - i guess)
+      imol = str2int(me % molecules % list % parameters( current % id ) ) !which molecule is being point to now
+      do i = 1, natoms(imol) !each atom in this molecule
+        iatom = iatom + 1 !increasing counter for each atom in the box
         call split( me % atom_list % parameters( current % id ), narg, arg )
+        !arg is now the string identification of atom type being looped in the block below; seeking match between atom types and current iatom
         atom_type => me % atom_type_list % first
         itype = 0
         found = .false.
@@ -56,11 +57,12 @@
           if (atom_type % usable) then
             itype = itype + 1
             found = atom_type % match_id( arg )
+!            print*, "FOUND: atom with in-box-number", iatom, "is of itype/type", itype, "/", arg
           end if
           if (.not.found) atom_type => atom_type % next
         end do
-!        write(unit,'(3(A,X),"0 0 0")') trim(join(int2str([iatom,jmol,itype]))), trim(current%params)
-        write(unit,'(3(A,X))') trim(join([int2str([iatom,jmol]),atom_type%id(1)])), trim(current%params)
+!        write(unit,'(3(A,X),"0 0 0")') trim(join(int2str([iatom,jmol,itype]))), trim(current%params) !integer identification
+        write(unit,'(3(A,X))') trim(join([int2str([iatom,jmol]),atom_type%id(1)])), trim(current%params) !string identification
         current => current % next
       end do
     end do

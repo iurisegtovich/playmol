@@ -18,27 +18,37 @@
 !            Federal University of Rio de Janeiro
 
 program playmol
-use mPlaymol
+
+use mPlaymol !, only tPlaymol
 use mGlobal
+
 implicit none
+
 integer :: i, inp
 character(sl) :: infile
+
 type(tPlaymol) :: System
+
 call writeln( "Playmol (Version: 20 Sep 2017)" )
+
 if (iargc() == 0) call error( "Usage: playmol <file-1> <file-2> ..." )
+
 call init_log( file = "playmol.log" )
-call getarg( 1, infile )
+
+call getarg(pos=1,value=infile)
+
 if (infile == "-") then
-  call System % Read( 5, trim(infile) )
+  call System % Read( 5, trim(infile) ) !infile == "-" implies unit 5 which means playmol will be reading from standard input, i.e., reading line by line interactively directly from console.
 else
   do i = 1, iargc()
     call getarg( i, infile )
     open( newunit = inp, file = infile, status = "old" )
     write(*,'("Reading file ",A,"...")') trim(infile)
-    call System % Read( inp, trim(infile) )
+    call System % Read( unit=inp, filename=trim(infile) ) !Reading = Parsing + executing input scripts. The reading will be performed according to unit stored in inp, the name stored in trim(infile) is for report purpose (I think).
     close(inp)
   end do
 end if
 call reprint_warnings
 call stop_log
+
 end program playmol

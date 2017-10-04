@@ -30,10 +30,12 @@ use mStruc
 use mPackmol
 use mMolecule
 use mBox
-use mCodeFlow
+use mCodeFlow !, only tCodeFlow
 use mFix
 
 implicit none
+
+private :: play_write
 
 type, private :: tVelocity
   logical  :: active = .false.
@@ -69,8 +71,8 @@ type tPlaymol
   type(StrucList) :: mixing_rule_list    = StrucList( "mixing rule", 2 )
 
   contains
-    procedure :: read => tPlaymol_Read
-    procedure :: write => tPlaymol_write
+    procedure :: read => tPlaymol_Read !avoid pointing to differently named functions if no polymorphism will be used
+    procedure :: write => play_write !make the function private so there is no name conflict problems
     procedure :: write_internals => tPlaymol_write_internals
     procedure :: analyze_struct => tPlaymol_analyze_struct
     procedure :: bodies_in_molecules => tPlaymol_bodies_in_molecules
@@ -110,11 +112,14 @@ contains
     class(tPlaymol), intent(inout) :: me
     integer,         intent(in)    :: unit
     character(*),    intent(in)    :: filename
+    integer       :: ioerr
+    character(sl) :: line
     integer       :: narg
     character(sl) :: arg(50)
     call me % code_flow % next_command( unit, narg, arg )
     do while (narg > 0)
       select case (trim(arg(1)))
+        case ("echo"); echo = .true. !ToDo: diversify command to echo on/off, screen/file/both, etc
         case ("prefix","suffix"); call prefix_suffix_command
         case ("box"); call box_command
         case ("velocity"); call velocity_command
@@ -139,7 +144,13 @@ contains
         case ("write"); call write_command
         case ("packmol"); call packmol_command
         case ("reset"); call reset_command
+!        case ("calc"); call calc_command !calculates stuff with molecules coordinates to use results as input in other commands
         case ("shell"); call shell_command
+        case ("thanks"); write(stdout,'(A)') yellow//"You're welcome!"//decolor
+        case ("pause");
+          write(stdout,'(A)') yellow//"Pausing, enter anything to continue!"//decolor
+          read(stdin,'(A'//csl//')',iostat=ioerr) line
+
         case ("quit")
           if ((narg == 2).and.(arg(2) == "all")) then
             call writeln( "Script", filename, "interrupted by a 'quit all' command" )
@@ -422,11 +433,11 @@ contains
       !---------------------------------------------------------------------------------------------
       subroutine build_command
         logical :: file_exists
-        integer :: geo
-        if (narg == 1) then
+        integer :: geo !geometry file unit
+        if (narg == 1) then !instructions for "build" statement: build from the subsequent lines in the active script
           call writeln("Reading geometric data...")
           call me % read_geometry( unit )
-        else
+        else !instructions for "build <file1>" statement: build from lines in the provided file 
           inquire( file = arg(2), exist = file_exists )
           if (.not.file_exists) call error( "file", arg(2), "not found" )
           open( newunit = geo, file = arg(2), status = "old" )
@@ -481,21 +492,21 @@ contains
         deallocate( Mass, Coord )
       end subroutine align_command
       !---------------------------------------------------------------------------------------------
-      subroutine write_command
+      subroutine write_command !write box information in several text based formats
         integer :: unit, nspec
         character(sl) :: formats(8) = ["playmol   ", "lammps    ", "lmp/models", "summary   ", &
                                        "xyz       ", "lammpstrj ", "emdee     ", &
-                                       "internals "  ]
+                                       "internals "  ] ! not documented
         if (narg < 2) call error( "invalid write command" )
         if (.not.any(formats == arg(2))) call error( "invalid format", arg(2), "in write command" )
         select case (arg(2))
           case ("internals"); nspec = 3
           case default; nspec = 0
         end select
-        if (narg == nspec+2) then
+        if (narg == nspec+2) then ! output to stdout
           call writeln( "Writing data in", arg(2), "format..." )
           unit = stdout
-        else if (narg == nspec+3) then
+        else if (narg == nspec+3) then ! output to provided filename
           call writeln( "Writing data to file", arg(narg), "in", arg(2), "format..." )
           open( newunit = unit, file = arg(narg), status = "replace" )
         else
@@ -646,7 +657,7 @@ contains
               if (.not. me % box % exists()) then
                 call error( "packmol action keyword requires previous box definition" )
               end if
-              me % packmol % setup = action == "setup"
+              me % packmol % setup = ( action == "setup" ) !action == "execute" implies property setup <= false
               iarg = iarg + 2
 
             case default
@@ -692,32 +703,32 @@ contains
     character(sl) :: arg(7)
     integer,       allocatable :: ndata(:)
     character(sl), allocatable :: data(:,:)
-    call me % code_flow % next_command( unit, narg, arg )
+    call me % code_flow % next_command( unit, narg, arg ) !reads one line of unit and parses to narg and arg (?)
     if (narg == 0) call error( "expected geometric data not provided" )
     N = str2int( arg(1) )
     call writeln( "Number of data to be read:", int2str(N) )
-    allocate( data(N,7), ndata(N) )
-    do i = 1, N
+    allocate( data(N,7), ndata(N) ) !N: Number of atoms, 7: Maximum number of columns in a consistent input
+    do i = 1, N !for each line defining the structure according to whats informed in the section/file header
       call me % code_flow % next_command( unit, narg, arg )
       call writeln( int2str(i), ":", join(arg(1:narg)) )
       if (narg == 0) call error( "expected geometric data not completed" )
-      select case (narg)
+      select case (narg) !apply active prefix/sufix to inout string arg
         case (3)
-          call me % atomfix % apply( arg(1:2) ) ! Bond
+          call me % atomfix % apply( string=arg(1:2) ) ! Bond
         case (4)
-          call me % atomfix % apply( arg(1) )   ! Coordinates
+          call me % atomfix % apply( string=arg(1) )   ! Coordinates
         case (5)
-          call me % atomfix % apply( arg(1:2) ) ! Bond and angle
-          call me % atomfix % apply( arg(4) )
+          call me % atomfix % apply( string=arg(1:2) ) ! Bond and angle
+          call me % atomfix % apply( string=arg(4) )
         case (7)
-          call me % atomfix % apply( arg(1:2) ) ! Bond, angle, and dihedral
-          call me % atomfix % apply( arg(4) )
-          call me % atomfix % apply( arg(6) )
+          call me % atomfix % apply( string=arg(1:2) ) ! Bond, angle, and dihedral
+          call me % atomfix % apply( string=arg(4) )
+          call me % atomfix % apply( string=arg(6) )
       end select
       ndata(i) = narg
       data(i,1:narg) = arg(1:narg)
     end do
-    call me % molecules % set_geometry( data, ndata )
+    call me % molecules % set_geometry( data, ndata ) 
   end subroutine tPlaymol_read_geometry
 
   !=================================================================================================
@@ -726,11 +737,11 @@ contains
     class(tPlaymol), intent(inout) :: me
     integer,      intent(in)    :: unit
     type(Struc), pointer :: ptr
-    write(unit,'(A)') trim(int2str(me % molecules % xyz % count))
-    write(unit,'("# Generated by Playmol on ",A)') trim(now())
+    write(unit,'(A)') trim(int2str(me % molecules % xyz % count)) !number of atoms
+    write(unit,'("# Generated by Playmol on ",A)') trim(now()) !xyz format comment line
     ptr => me % molecules % xyz % first
     do while (associated(ptr))
-      write(unit,'(A)') trim(ptr % id(1))//" "//trim(ptr % params)
+      write(unit,'(A)') trim(ptr % id(1))//" "//trim(ptr % params) !unique identifier, x, y, z for each atom
       ptr => ptr % next
     end do
   end subroutine tPlaymol_write_xyz
@@ -886,7 +897,7 @@ contains
 
   !=================================================================================================
 
-  subroutine tPlaymol_write( me, unit )
+  subroutine play_write( me, unit )
     class(tPlaymol), intent(in) :: me
     integer,      intent(in) :: unit
     integer :: N
@@ -916,7 +927,7 @@ contains
         current => current % next
       end do
     end if
-  end subroutine tPlaymol_write
+  end subroutine play_write
 
   !=================================================================================================
 

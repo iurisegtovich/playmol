@@ -19,6 +19,11 @@
 
 module mGlobal
 
+use, intrinsic :: iso_fortran_env, only : stdin=>input_unit, & !< Standard input unit
+                                          stdout=>output_unit, & !< Standard output unit
+                                          stderr=>error_unit
+
+
 implicit none
 
 integer,      parameter :: rb = 8      !< Default number of bytes for real numbers
@@ -27,10 +32,12 @@ character(*), parameter :: csl = "256" !< String with default character string l
 
 character(*), parameter :: yellow = achar(27)//"[1;93m", &
                            red = achar(27)//"[1;91m",    &
+                           blue = achar(27)//"[0;34m",    &
                            decolor = achar(27)//"[0m"
 
-integer :: stdout = 6                  !< Standard output unit
 integer :: logunit = 0                 !< Output unit for logging
+
+logical :: echo = .false.
 
 !> A simple random number generator:
 type rng

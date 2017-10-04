@@ -49,7 +49,7 @@ contains
 
   !=================================================================================================
 
-  elemental subroutine tFix_apply( me, string )
+  elemental subroutine tFix_apply( me, string ) !apply active prefix/sufix to inout string 
     class(tFix),   intent(in)    :: me
     character(sl), intent(inout) :: string
     integer :: last

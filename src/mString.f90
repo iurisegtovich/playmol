@@ -253,6 +253,7 @@ contains
           call clean( line )
         end do
         if (ioerr == 0) then
+          if ( echo ) write(stdout,'(A)') blue//line//decolor !print actual post-clean commands
           last = len_trim(line)
           if (line(last:last) == "&") then
             command = trim(command)//" "//line(1:last-1)

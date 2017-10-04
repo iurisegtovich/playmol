@@ -27,6 +27,7 @@ SRCDIR  = ./src
 OBJDIR  = $(SRCDIR)/obj
 BINDIR  = ./bin
 DOCDIR  = ./docs
+TESTDIR  = ./tests
 GTKDIR  = ./highlight
 
 PACKMOL = ./lib
@@ -40,7 +41,10 @@ OBJ  = $(patsubst $(SRCDIR)/%.f90,$(OBJDIR)/%.o,$(SRC))
 
 all: $(BINDIR)/playmol $(BINDIR)/playmoltools $(BINDIR)/packmol
 
-.PHONY: install clean clean-all doc
+test:
+	make -C $(TESTDIR)
+
+.PHONY: install clean clean-all doc test
 
 doc:
 	make -C $(DOCDIR)

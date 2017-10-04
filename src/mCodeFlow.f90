@@ -22,6 +22,7 @@ module mCodeFlow
 use mGlobal
 use mStruc
 use mParser
+use mString, only: read_command
 
 implicit none
 

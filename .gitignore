@@ -1,5 +1,6 @@
 examples/*/*.xyz
 examples/*/*.lmp
+examples/*/*.lammps
 examples/*/*.lammpstrj
 examples/*/*.log
 bin/
@@ -7,3 +8,4 @@ docs/html/
 lib/libpackmol.a
 lib/packmol/
 src/obj/
+tests/
